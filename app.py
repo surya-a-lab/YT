@@ -93,6 +93,9 @@ def start_download():
         try:
             ydl_opts = {
                 'format':              'best',
+                'http_headers':{'User-Agent':'Mozilla/5.0'},
+                'extractor_args':{'youtube':{'player_client':['android']}},
+                'cookiesfrombrowser':('chrome'),
                 'outtmpl':             os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
                 'progress_hooks':      [progress_hook],
                 'quiet':               True,
