@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Video Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.15);
+  --text:#f0eeff;--muted:rgba(240,238,255,0.45);
+  --accent:#7c6fff;--accent2:#a78bfa;
+  --adim:rgba(124,111,255,0.12);--aglow:rgba(124,111,255,0.25);
+  --ok:#34d399;--err:#f87171;
+  --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:2rem 1rem;position:relative;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(124,111,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,111,255,0.03) 1px,transparent 1px);
+  background-size:48px 48px}
+.orb{position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0;opacity:.3}
+.o1{width:500px;height:500px;background:#4c1d95;top:-150px;left:-150px}
+.o2{width:400px;height:400px;background:#1e1b4b;bottom:-100px;right:-100px}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:600px;
+  display:flex;flex-direction:column;gap:1.75rem;animation:up .5s ease both}
+@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* header */
+.hdr{text-align:center}
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--adim);
+  border:1px solid rgba(124,111,255,0.25);border-radius:999px;
+  padding:5px 14px 5px 10px;margin-bottom:1.25rem;
+  font-size:11px;font-family:var(--mono);color:var(--accent2);letter-spacing:.06em}
+.dot{width:7px;height:7px;background:var(--accent);border-radius:50%;
+  box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
+h1{font-size:clamp(2rem,7vw,3rem);font-weight:600;line-height:1.1;
+  letter-spacing:-.03em;margin-bottom:.6rem}
+h1 span{background:linear-gradient(135deg,#a78bfa,#7c6fff,#c4b5fd);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{font-size:14px;color:var(--muted);font-weight:300}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:1.75rem;transition:border-color .3s}
+.card:hover{border-color:var(--border-h)}
+
+/* url row */
+.irow{display:flex;gap:10px;align-items:stretch}
+.iwrap{flex:1;position:relative;display:flex;align-items:center}
+.iico{position:absolute;left:13px;color:var(--muted);pointer-events:none}
+#url{width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:0 14px 0 40px;height:52px;
+  font-family:var(--mono);font-size:13px;color:var(--text);outline:none;
+  transition:border-color .2s,box-shadow .2s}
+#url::placeholder{font-family:var(--sans);font-size:14px;color:var(--muted)}
+#url:focus{border-color:rgba(124,111,255,.5);box-shadow:0 0 0 3px var(--aglow)}
+.pbtn{height:52px;padding:0 15px;border-radius:12px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted);font-family:var(--sans);
+  font-size:13px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.pbtn:hover{border-color:var(--border-h);color:var(--text)}
+
+/* preview */
+#prev{background:var(--surface2);border:1px solid var(--border);border-radius:14px;
+  padding:1rem;display:none;gap:13px;align-items:center;margin-top:1rem;animation:up .3s ease}
+#prev.on{display:flex}
+#thumb{width:88px;height:56px;object-fit:cover;border-radius:8px;
+  flex-shrink:0;background:var(--surface)}
+.pmeta{flex:1;min-width:0}
+.ptitle{font-size:13px;font-weight:500;line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.psub{font-size:12px;color:var(--muted);font-family:var(--mono)}
+
+/* download button */
+#dlbtn{width:100%;height:52px;margin-top:1rem;border-radius:14px;border:none;
+  background:linear-gradient(135deg,#6d5dfc,#7c6fff,#9061fc);
+  color:#fff;font-family:var(--sans);font-size:15px;font-weight:600;
+  cursor:pointer;transition:all .25s;display:flex;align-items:center;
+  justify-content:center;gap:10px;position:relative;overflow:hidden}
+#dlbtn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:.2s}
+#dlbtn:hover:not(:disabled)::after{background:rgba(255,255,255,.07)}
+#dlbtn:active:not(:disabled){transform:scale(.98)}
+#dlbtn:disabled{opacity:.45;cursor:not-allowed}
+
+/* progress */
+#prog{display:none;flex-direction:column;gap:.9rem;animation:up .3s ease}
+#prog.on{display:flex}
+.prow{display:flex;justify-content:space-between;align-items:center}
+.plabel{font-size:13px;color:var(--muted);font-family:var(--mono)}
+.ppct{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--accent2)}
+.track{width:100%;height:6px;background:var(--surface2);border-radius:99px;
+  overflow:hidden;border:1px solid var(--border)}
+.fill{height:100%;background:linear-gradient(90deg,#6d5dfc,#a78bfa);
+  border-radius:99px;width:0%;transition:width .35s ease;position:relative}
+.fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:40px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.3));
+  border-radius:99px;animation:sh 1.2s infinite}
+@keyframes sh{0%,100%{opacity:0}50%{opacity:1}}
+.pmeta2{display:flex;gap:1.5rem}
+.mi{display:flex;flex-direction:column;gap:2px}
+.ml{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
+.mv{font-size:14px;font-weight:500;font-family:var(--mono)}
+
+/* done */
+#done{display:none;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
+  border-radius:12px;padding:1.25rem 1.5rem;align-items:center;gap:14px;animation:up .4s ease}
+#done.on{display:flex}
+.dico{width:40px;height:40px;background:rgba(52,211,153,.15);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dtitle{font-size:14px;font-weight:600;color:var(--ok);margin-bottom:2px}
+.dsub{font-size:13px;color:var(--muted)}
+
+/* error */
+#errbox{display:none;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);
+  border-radius:12px;padding:1.25rem 1.5rem;gap:12px;align-items:flex-start;animation:up .3s ease}
+#errbox.on{display:flex}
+#errbox svg{flex-shrink:0;color:var(--err);margin-top:2px}
+#errtxt{font-size:13px;color:var(--err);line-height:1.5}
+
+.foot{text-align:center;font-size:12px;color:var(--muted);font-family:var(--mono)}
+
+/* spinner */
+.spin{width:17px;height:17px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media(max-width:480px){
+  .card{padding:1.25rem}
+  .irow{flex-direction:column}
+  .pbtn{height:44px}
+  #url{height:44px}
+}
+</style>
+</head>
+<body>
+<div class="orb o1"></div>
+<div class="orb o2"></div>
+
+<div class="wrap">
+  <div class="hdr">
+    <div class="pill"><span class="dot"></span>YTDownloader</div>
+    <h1>Download <span>YouTube</span><br>videos instantly.</h1>
+    <p class="sub">Paste a link. Hit download. Done.</p>
+  </div>
+
+  <div class="card">
+    <div class="irow">
+      <div class="iwrap">
+        <svg class="iico" width="17" height="17" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+        <input type="url" id="url" placeholder="Paste YouTube URL here…"
+          oninput="onInput()" onpaste="setTimeout(fetchInfo,120)">
+      </div>
+      <button class="pbtn" onclick="doPaste()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+        </svg>Paste
+      </button>
+    </div>
+
+    <div id="prev">
+      <img id="thumb" src="" alt="">
+      <div class="pmeta">
+        <div class="ptitle" id="ptitle">Loading…</div>
+        <div class="psub" id="psub"></div>
+      </div>
+    </div>
+
+    <button id="dlbtn" onclick="startDl()" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>Download MP4
+    </button>
+  </div>
+
+  <div id="prog">
+    <div class="prow">
+      <span class="plabel" id="plabel">Downloading…</span>
+      <span class="ppct" id="ppct">0%</span>
+    </div>
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="pmeta2">
+      <div class="mi"><span class="ml">Speed</span><span class="mv" id="spd">—</span></div>
+      <div class="mi"><span class="ml">ETA</span><span class="mv" id="eta">—</span></div>
+    </div>
+  </div>
+
+  <div id="done">
+    <div class="dico">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
+        stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <div>
+      <div class="dtitle">Download complete!</div>
+      <div class="dsub">Saved to the <strong>downloads</strong> folder</div>
+    </div>
+  </div>
+
+  <div id="errbox">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <div id="errtxt">Something went wrong.</div>
+  </div>
+
+  <div class="foot">video only · mp4 · powered by yt-dlp + flask</div>
+</div>
+
+<script>
+const API=window.location.origin;
+let timer=null, sse=null;
+
+function onInput(){clearTimeout(timer);timer=setTimeout(fetchInfo,700)}
+
+async function doPaste(){
+  try{
+    const t=await navigator.clipboard.readText();
+    document.getElementById('url').value=t;
+    fetchInfo();
+  }catch{alert('Please allow clipboard permission.')}
+}
+
+function isYT(u){return u.includes('youtube.com')||u.includes('youtu.be')}
+
+async function fetchInfo(){
+  const url=document.getElementById('url').value.trim();
+  if(!url||!isYT(url)){
+    hide('prev');document.getElementById('dlbtn').disabled=true;return;
+  }
+  show('prev');
+  document.getElementById('ptitle').textContent='Fetching info…';
+  document.getElementById('psub').textContent='';
+  document.getElementById('dlbtn').disabled=true;
+  try{
+    const r=await fetch(`${API}/info`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    document.getElementById('thumb').src=d.thumbnail;
+    document.getElementById('ptitle').textContent=d.title;
+    const dur=d.duration?fmtDur(d.duration):'';
+    const v=d.view_count?`${(d.view_count/1000).toFixed(0)}K views`:'';
+    document.getElementById('psub').textContent=[d.uploader,dur,v].filter(Boolean).join(' · ');
+    document.getElementById('dlbtn').disabled=false;
+  }catch(e){
+    document.getElementById('ptitle').textContent='Could not load video info';
+    document.getElementById('psub').textContent=e.message;
+  }
+}
+
+function fmtDur(s){const m=Math.floor(s/60),sc=s%60;return`${m}:${String(sc).padStart(2,'0')}`}
+
+function show(id){document.getElementById(id).classList.add('on')}
+function hide(id){document.getElementById(id).classList.remove('on')}
+
+function clearState(){hide('prog');hide('done');hide('errbox')}
+
+async function startDl(){
+  const url=document.getElementById('url').value.trim();
+  if(!url)return;
+  clearState();
+
+  const sid='s'+Date.now();
+  const btn=document.getElementById('dlbtn');
+  btn.disabled=true;
+  btn.innerHTML='<div class="spin"></div> Starting…';
+
+  try{
+    const r=await fetch(`${API}/download`,{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url,session_id:sid})});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    btn.innerHTML='<div class="spin"></div> Downloading…';
+    show('prog');
+    watchProgress(sid);
+  }catch(e){
+    showErr(e.message);resetBtn();
+  }
+}
+
+function watchProgress(sid){
+  if(sse){sse.close();sse=null}
+  sse=new EventSource(`${API}/progress/${sid}`);
+
+  sse.onmessage=(e)=>{
+    const d=JSON.parse(e.data);
+    if(d.status==='downloading'){
+      setProg(d.percent,d.speed,d.eta);
+      document.getElementById('plabel').textContent='Downloading…';
+    } else if(d.status==='processing'){
+      setProg(100,'','');
+      document.getElementById('plabel').textContent='Processing…';
+      document.getElementById('dlbtn').innerHTML='<div class="spin"></div> Processing…';
+    } else if(d.status==='done'){
+      sse.close();sse=null;
+      setProg(100,'','');
+      hide('prog');show('done');
+      resetBtn();
+    } else if(d.status==='error'){
+      sse.close();sse=null;
+      hide('prog');
+      showErr(d.error||'Download failed');
+      resetBtn();
+    }
+  };
+
+  sse.onerror=()=>{
+    // Only show error if we haven't finished yet
+    const state=document.getElementById('done').classList.contains('on');
+    if(!state){
+      sse.close();sse=null;
+      hide('prog');
+      showErr('Lost connection to server. Check if app.py is still running.');
+      resetBtn();
+    }
+  };
+}
+
+function setProg(pct,spd,eta){
+  document.getElementById('fill').style.width=pct+'%';
+  document.getElementById('ppct').textContent=pct.toFixed(1)+'%';
+  document.getElementById('spd').textContent=spd||'—';
+  document.getElementById('eta').textContent=eta||'—';
+}
+
+function showErr(msg){
+  show('errbox');
+  document.getElementById('errtxt').textContent=msg;
+}
+
+function resetBtn(){
+  const btn=document.getElementById('dlbtn');
+  btn.disabled=false;
+  btn.innerHTML=`<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>Download Again`;
+}
+</script>
+</body>
+</html>
